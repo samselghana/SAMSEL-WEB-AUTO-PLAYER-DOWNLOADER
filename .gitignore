@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+.automix_uploads/
+.automix_remote_sessions/
+*.egg-info/
+.env
+.venv/
+venv/
+node_modules/
+*.lrc
+*.analysis.json
+library_index.json
+.git/

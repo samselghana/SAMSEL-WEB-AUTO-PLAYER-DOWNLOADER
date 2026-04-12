@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+  <defs>
+    <linearGradient id="samselG" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="url(#samselG)"/>
+  <path fill="#fff" d="M42 18v22c0 2.5-2.5 4.5-5.5 4.5S31 42.5 31 40s2.5-4.5 5.5-4.5c.8 0 1.5.1 2.2.3V24l-12 3.4V44c0 2.5-2.5 4.5-5.5 4.5S15 46.5 15 44s2.5-4.5 5.5-4.5c.8 0 1.5.1 2.2.3V20l19-2z"/>
+</svg>

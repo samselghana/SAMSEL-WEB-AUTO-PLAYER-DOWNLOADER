@@ -1,0 +1,17 @@
+Button camo textures (optional)
+
+Place exactly these filenames in this folder (same directory as camo-tile.svg):
+
+  stack_1.png
+  stack_2.png
+  stack_3.png
+  stack_4.png
+  stack_5.png
+  stack_6.png
+  stack_7.png
+
+They are served at /camo/stack_N.png when uvicorn runs (server.py or automix_standalone_app.py).
+
+Each toolbar button and tab gets a random stack 1–7 on page load. If a PNG is missing, that stack falls back to a filtered copy of the shared SVG tile so buttons still look different from each other.
+
+Use square or wide PNGs (e.g. 512–1024 px); they are scaled with background-size: cover on each button.
