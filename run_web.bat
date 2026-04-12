@@ -13,6 +13,13 @@ REM To require a token instead (recommended): comment the NO_TOKEN line above, u
 REM   set SAMSEL_AUTOMIX_TOKEN=your-long-random-secret
 REM Split UI/API domains: set SAMSEL_CORS_ORIGINS=https://your.pages.dev
 
+REM ── Jingle control ──
+REM Set to 0 to DISABLE user jingle uploads (lock to the default jingle below).
+REM Set to 1 (or leave unset) to ALLOW users to pick their own jingle file.
+set SAMSEL_JINGLE_UPLOADS=0
+REM Absolute path to the default jingle MP3 that plays at every track transition.
+set SAMSEL_JINGLE_PATH=c:\Users\pc\SAMSEL_AutoMix_Jingle_3.mp3
+
 py -3.10 -m pip install -r requirements.txt -q
 
 echo.

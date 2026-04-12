@@ -242,7 +242,7 @@ video {
   margin-top: 0;
 }
 
-/* AutoMix tab: title row with spinning logo (matches main header) */
+/* Downloader tab: title row with spinning logo (matches main header) */
 .am-automix-panel-brand {
   margin-bottom: 10px;
   flex-wrap: wrap;

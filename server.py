@@ -29,6 +29,14 @@ _BASE = Path(__file__).resolve().parent
 STATIC = _BASE / "static"
 LOGO_PNG = _BASE / "logo.png"
 
+# ── Jingle control ──────────────────────────────────────────────────
+# SAMSEL_JINGLE_UPLOADS=0  → disable user jingle uploads (lock to default)
+# SAMSEL_JINGLE_UPLOADS=1  → allow user jingle uploads  (default)
+# SAMSEL_JINGLE_PATH       → absolute path to the default jingle MP3
+_JINGLE_UPLOADS_ENABLED = os.environ.get("SAMSEL_JINGLE_UPLOADS", "1").strip() != "0"
+_JINGLE_PATH_RAW = os.environ.get("SAMSEL_JINGLE_PATH", "").strip()
+_JINGLE_PATH = Path(_JINGLE_PATH_RAW) if _JINGLE_PATH_RAW else None
+
 app = FastAPI(title="SAMSEL Web", version="1.0.0")
 
 _cors_raw = os.environ.get("SAMSEL_CORS_ORIGINS", "").strip()
@@ -106,6 +114,31 @@ def logo_png():
             headers={"Cache-Control": "public, max-age=3600, must-revalidate"},
         )
     return Response(status_code=404)
+
+
+# ── Jingle API ──────────────────────────────────────────────────────
+@app.get("/api/jingle/config")
+def jingle_config():
+    """Tell the frontend whether user uploads are allowed and if a default jingle exists."""
+    has_default = bool(_JINGLE_PATH and _JINGLE_PATH.is_file())
+    return {
+        "uploads_enabled": _JINGLE_UPLOADS_ENABLED,
+        "has_default_jingle": has_default,
+        "default_jingle_name": _JINGLE_PATH.name if has_default else None,
+    }
+
+
+@app.get("/api/jingle/default")
+def jingle_default():
+    """Stream the server-configured default jingle file."""
+    if not _JINGLE_PATH or not _JINGLE_PATH.is_file():
+        return Response(status_code=404)
+    return FileResponse(
+        _JINGLE_PATH,
+        media_type="audio/mpeg",
+        filename=_JINGLE_PATH.name,
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 _MANIFEST = STATIC / "manifest.webmanifest"

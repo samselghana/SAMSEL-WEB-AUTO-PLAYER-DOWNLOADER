@@ -55,6 +55,7 @@
     xfCooldown = false;
 
   var jingleUrl = null;
+  var jingleLocked = false;
   /** True while a transition jingle uses “replace” (main deck ducked until jingle ends). */
   var jingleReplaceHardCut = false;
 
@@ -2675,6 +2676,7 @@
     }
 
     $("jg-file").onchange = function (e) {
+      if (jingleLocked) { e.target.value = ""; return; }
       var f = e.target.files && e.target.files[0];
       if (jingleUrl) URL.revokeObjectURL(jingleUrl);
       jingleUrl = f ? URL.createObjectURL(f) : null;
@@ -2709,6 +2711,31 @@
       jingleReplaceHardCut = false;
       if (gainMain) gainMain.gain.value = masterLinear;
     };
+
+    (function fetchJingleConfig() {
+      fetch("/api/jingle/config")
+        .then(function (r) { return r.json(); })
+        .then(function (cfg) {
+          if (!cfg.uploads_enabled) {
+            jingleLocked = true;
+            var fileBtn = $("jg-file");
+            if (fileBtn) fileBtn.closest(".row-inline").style.display = "none";
+            var en = $("jg-enable");
+            if (en) { en.checked = true; en.disabled = true; }
+            var atXf = $("jg-at-xf");
+            if (atXf) { atXf.checked = true; atXf.disabled = true; }
+            var atHard = $("jg-at-hard");
+            if (atHard) { atHard.checked = true; atHard.disabled = true; }
+            if (cfg.has_default_jingle) {
+              if (jingleUrl) URL.revokeObjectURL(jingleUrl);
+              jingleUrl = "/api/jingle/default";
+              audioJingle.src = jingleUrl;
+              $("jg-name").textContent = cfg.default_jingle_name || "Default jingle";
+            }
+          }
+        })
+        .catch(function () {});
+    })();
 
     document.querySelectorAll(".tab").forEach(function (tab) {
       tab.onclick = function () {

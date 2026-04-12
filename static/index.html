@@ -61,7 +61,7 @@
       <button type="button" class="tab" data-tab="lyrics" data-tip="tab_lyrics" role="tab">Lyrics</button>
       <button type="button" class="tab" data-tab="eq" data-tip="tab_eq" role="tab">EQ</button>
       <button type="button" class="tab" data-tab="trim" data-tip="tab_trim" role="tab">Trim</button>
-      <button type="button" class="tab" data-tab="automix" data-tip="tab_automix" role="tab">AutoMix</button>
+      <button type="button" class="tab" data-tab="automix" data-tip="tab_automix" role="tab">Downloader</button>
       <button type="button" class="tab" data-tab="info" data-tip="tab_info" role="tab">Info</button>
     </nav>
 
@@ -352,7 +352,7 @@
         </div>
       </section>
 
-      <!-- ========== AUTOMIX DOWNLOADER ========== -->
+      <!-- ========== DOWNLOADER ========== -->
       <section id="panel-automix" class="panel" role="tabpanel" hidden>
         <div class="brand am-automix-panel-brand">
           <div class="spin-logo-wrap" data-tip="brand_logo">
@@ -367,7 +367,7 @@
             />
           </div>
           <div>
-            <h2 class="am-automix-panel-title">AutoMix Downloader v2</h2>
+            <h2 class="am-automix-panel-title">Downloader v2</h2>
             <p class="sub am-automix-panel-sub">Same spinning logo as the main player · server-side engine</p>
           </div>
         </div>
@@ -413,7 +413,7 @@
             <h2 class="automix-section-title">Output &amp; processing</h2>
             <div class="row-inline am-out-row">
               <label for="am-output-dir">Output folder</label>
-              <input type="text" id="am-output-dir" class="automix-text" placeholder="Server path, e.g. C:\Users\...\Music\AutoMix" autocomplete="off" />
+              <input type="text" id="am-output-dir" class="automix-text" placeholder="Server path, e.g. C:\Users\...\Music\Downloads" autocomplete="off" />
             </div>
             <div class="am-format-row row-inline">
               <label for="am-format">Format</label>
@@ -522,7 +522,7 @@
                 <button type="button" class="btn small btn-lbl-rose" id="am-log-clear" data-tip="am_log_clear">Clear log</button>
               </span>
             </div>
-            <pre id="am-log" class="automix-log" tabindex="0" aria-label="AutoMix live log"></pre>
+            <pre id="am-log" class="automix-log" tabindex="0" aria-label="Downloader live log"></pre>
           </div>
         </div>
         <div class="automix-footer card">
@@ -545,7 +545,7 @@
           <h2>Feature parity</h2>
           <p>This web build mirrors <strong>SAMSEL V3 PRO</strong> behavior where the browser allows: playlist, EQ, hotcues, manual &amp; beat loops, slip roll, crossfade, jingle overlay, LRC lyrics, silence trim export, BPM from tags. <strong>Skins</strong> (header) match the desktop themes: Midnight Indigo, Military Camo, Carbon Studio, Sunset Amber — saved in <code>localStorage</code>.</p>
           <p class="hint">Metadata uses <strong>music-metadata</strong> (full tags + embedded lyrics from CDN) with <strong>jsmediatags</strong> as a fallback fill-in. Offline / blocked CDN: tags may be incomplete. ID3 SYLT binary sync is not parsed — use USLT/LRC text or a sidecar <code>.lrc</code>. No dual-file RAM EQ path like desktop. Output device picker needs Chromium + permission.</p>
-          <p class="hint"><strong>iOS / iPadOS:</strong> Use Safari. Add to Home Screen uses the web app manifest; status bar uses <code>viewport-fit=cover</code> and safe-area padding. Audio playback requires a user tap. Inputs use 16px+ text to avoid focus zoom; AutoMix ZIP + Share → Save to Files picks a folder in the Files app.</p>
+          <p class="hint"><strong>iOS / iPadOS:</strong> Use Safari. Add to Home Screen uses the web app manifest; status bar uses <code>viewport-fit=cover</code> and safe-area padding. Audio playback requires a user tap. Inputs use 16px+ text to avoid focus zoom; Downloader ZIP + Share → Save to Files picks a folder in the Files app.</p>
         </div>
       </section>
     </main>

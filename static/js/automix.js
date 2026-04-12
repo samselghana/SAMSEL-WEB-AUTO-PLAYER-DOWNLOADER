@@ -544,8 +544,8 @@
         return deliverBlobToDevice(
           o.blob,
           o.ct || "application/zip",
-          "automix_outputs.zip",
-          "automix_outputs.zip",
+          "downloader_outputs.zip",
+          "downloader_outputs.zip",
           zipMaxShare
         );
       })
@@ -789,18 +789,18 @@
               "Server: SAMSEL_AUTOMIX_ALLOW_REMOTE is on but SAMSEL_AUTOMIX_TOKEN is missing. Set a token, restart uvicorn (or set SAMSEL_AUTOMIX_NO_TOKEN=1 if you accept open access).";
           } else if (j.allow_remote && j.no_token_mode) {
             hint.textContent =
-              "Server: no-token mode — anyone who has your tunnel URL can use AutoMix and download files from the output folder. Prefer SAMSEL_AUTOMIX_TOKEN for real deployments.";
+              "Server: no-token mode — anyone who has your tunnel URL can use the Downloader and download files from the output folder. Prefer SAMSEL_AUTOMIX_TOKEN for real deployments.";
             if (usePolling) hint.textContent += " Live log uses polling on phones.";
           } else if (j.allow_remote && j.token_required) {
             hint.textContent =
-              "Cloudflare / internet: enter the AutoMix token below, tap Save (must match SAMSEL_AUTOMIX_TOKEN on the PC running uvicorn). Jobs still run on that PC.";
+              "Cloudflare / internet: enter the Downloader token below, tap Save (must match SAMSEL_AUTOMIX_TOKEN on the PC running uvicorn). Jobs still run on that PC.";
             if (usePolling) hint.textContent += " Live log uses polling on phones.";
           } else if (j.lan_enabled) {
             var base = j.token_required
-              ? "LAN AutoMix is on — enter the token below (same as SAMSEL_AUTOMIX_TOKEN on the server), tap Save, then use this tab."
+              ? "LAN Downloader is on — enter the token below (same as SAMSEL_AUTOMIX_TOKEN on the server), tap Save, then use this tab."
               : j.no_token_mode
-                ? "LAN AutoMix is on — no token required (anyone on your Wi‑Fi can use this tab)."
-                : "LAN AutoMix is on — you can queue jobs from this device. Completed files will auto-save to this device.";
+                ? "LAN Downloader is on — no token required (anyone on your Wi‑Fi can use this tab)."
+                : "LAN Downloader is on — you can queue jobs from this device. Completed files will auto-save to this device.";
             if (usePolling) base += " Live log uses fast refresh on phones (not streaming).";
             hint.textContent = base;
           } else {
@@ -814,7 +814,7 @@
       })
       .catch(function () {
         var hint = $("am-lan-hint");
-        if (hint) hint.textContent = "Could not read AutoMix LAN settings (is the server running?).";
+        if (hint) hint.textContent = "Could not read Downloader LAN settings (is the server running?).";
       });
   }
 
@@ -822,7 +822,7 @@
     return apiJson("/api/automix/config").then(function (x) {
       if (x.ok && x.j && x.j.config) applyConfig(x.j.config);
       else if (x.status === 403 && $("am-probe")) {
-        $("am-probe").textContent = errDetail(x.j) || "AutoMix API refused this device.";
+        $("am-probe").textContent = errDetail(x.j) || "Downloader API refused this device.";
       }
     });
   }
@@ -843,7 +843,7 @@
       if (!el) return;
       if (!x.ok) {
         if (x.status === 403) {
-          el.textContent = errDetail(x.j) || "AutoMix probe refused — check LAN/token settings.";
+          el.textContent = errDetail(x.j) || "Downloader probe refused — check LAN/token settings.";
         }
         return;
       }

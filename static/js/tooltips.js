@@ -145,21 +145,21 @@
     phone_lan_banner:
       "How to open SAMSEL on your phone: use your PC's LAN IP (shown here), not 127.0.0.1. Allow port 8765 in Windows Firewall if needed.",
     tab_automix:
-      "AutoMix runs on the PC. Home Wi‑Fi: SAMSEL_AUTOMIX_LAN=1. Cloudflare/internet: tunnel + SAMSEL_AUTOMIX_ALLOW_REMOTE=1 + SAMSEL_AUTOMIX_TOKEN (or SAMSEL_AUTOMIX_NO_TOKEN=1 — insecure). Phones use polling for the live log.",
+      "Downloader runs on the PC. Home Wi‑Fi: SAMSEL_AUTOMIX_LAN=1. Cloudflare/internet: tunnel + SAMSEL_AUTOMIX_ALLOW_REMOTE=1 + SAMSEL_AUTOMIX_TOKEN (or SAMSEL_AUTOMIX_NO_TOKEN=1 — insecure). Phones use polling for the live log.",
     am_browse: "CSV: pick a file to upload. Folder scan: type a server path. Single/playlist: paste URL or query.",
-    am_add_job: "Save settings and enqueue this source. The worker starts automatically when you open AutoMix (same as the desktop app); use Stop/Start if you need to pause the queue.",
+    am_add_job: "Save settings and enqueue this source. The worker starts automatically when you open the Downloader (same as the desktop app); use Stop/Start if you need to pause the queue.",
     am_upload_csv: "Upload a CSV to the server temp folder and enqueue it as a batch job.",
     am_worker_start: "Start the background worker thread to process the queue.",
     am_worker_stop: "Request stop (current yt-dlp may terminate).",
     am_save: "Write options to ~/.automix_downloader_v2.json (shared with the desktop app).",
     am_open_out: "Open the output folder in Explorer / Finder (server PC only).",
-    am_launch_tk: "Open the original Tkinter AutoMix window (optional).",
+    am_launch_tk: "Open the original Tkinter Downloader window (optional).",
     am_token:
       "If the server requires a token (SAMSEL_AUTOMIX_TOKEN without NO_TOKEN), type the same secret here and Save — stored only on this device.",
     am_outputs_refresh:
       "List audio and .lrc files under the server output folder so you can download them to this phone or PC browser.",
     am_outputs_zip:
-      "Builds one automix_outputs.zip on the server (same file list as below) — works in every mobile browser. After download, use Share or Save to Files to pick a folder; unzip there to get all tracks.",
+      "Builds one downloader_outputs.zip on the server (same file list as below) — works in every mobile browser. After download, use Share or Save to Files to pick a folder; unzip there to get all tracks.",
     am_save_folder_pick:
       "Chrome / Edge only: pick a folder once; then singles and ZIP write there directly. Other browsers: use Download all as ZIP + Share / Save to Files.",
     am_save_folder_clear:
