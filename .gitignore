@@ -12,3 +12,9 @@ node_modules/
 *.analysis.json
 library_index.json
 .git/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
