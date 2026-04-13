@@ -34,10 +34,20 @@ LOGO_PNG = _BASE / "logo.png"
 # ── Jingle control ──────────────────────────────────────────────────
 # SAMSEL_JINGLE_UPLOADS=0  → disable user jingle uploads (lock to default)
 # SAMSEL_JINGLE_UPLOADS=1  → allow user jingle uploads  (default)
-# SAMSEL_JINGLE_PATH       → absolute path to the default jingle MP3
+# SAMSEL_JINGLE_PATH       → optional; absolute path to default jingle MP3 (overrides bundle)
+# If unset or missing, uses assets/default-jingle.mp3 when that file exists (e.g. Railway image).
 _JINGLE_UPLOADS_ENABLED = os.environ.get("SAMSEL_JINGLE_UPLOADS", "1").strip() != "0"
 _JINGLE_PATH_RAW = os.environ.get("SAMSEL_JINGLE_PATH", "").strip()
-_JINGLE_PATH = Path(_JINGLE_PATH_RAW) if _JINGLE_PATH_RAW else None
+_JINGLE_PATH = None
+if _JINGLE_PATH_RAW:
+    _p = Path(_JINGLE_PATH_RAW).expanduser()
+    _p = _p.resolve() if _p.is_absolute() else (_BASE / _p).resolve()
+    if _p.is_file():
+        _JINGLE_PATH = _p
+if _JINGLE_PATH is None:
+    _bundled = (_BASE / "assets" / "default-jingle.mp3").resolve()
+    if _bundled.is_file():
+        _JINGLE_PATH = _bundled
 
 # Bump with static HTML: <meta name="samsel-web-build"> and all asset ?v= query params.
 _WEB_BUILD = (os.environ.get("SAMSEL_WEB_BUILD") or "4").strip() or "4"
