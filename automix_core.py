@@ -15,16 +15,34 @@ from dataclasses import dataclass, asdict, fields
 from typing import Optional, List, Dict, Any, Tuple
 
 
-# Optional imports
-try:
-    import librosa
-except Exception:
-    librosa = None
+# librosa/numpy: lazy-loaded in AudioAnalyzer.analyze (import is slow; helps cold start / Railway healthchecks)
+_librosa_mod = None
+_np_mod = None
 
-try:
-    import numpy as np
-except Exception:
-    np = None
+
+def _lazy_librosa_np():
+    """Return (librosa, np) or (None, None) if unavailable."""
+    global _librosa_mod, _np_mod
+    if _librosa_mod is False or _np_mod is False:
+        return None, None
+    if _librosa_mod is None:
+        try:
+            import librosa as _lr
+
+            _librosa_mod = _lr
+        except Exception:
+            _librosa_mod = False
+    if _np_mod is None:
+        try:
+            import numpy as _n
+
+            _np_mod = _n
+        except Exception:
+            _np_mod = False
+    if _librosa_mod is False or _np_mod is False:
+        return None, None
+    return _librosa_mod, _np_mod
+
 
 try:
     from mutagen.mp3 import MP3
@@ -440,6 +458,7 @@ class AudioAnalyzer:
             "energy": None,
             "spectral_centroid": None,
         }
+        librosa, np = _lazy_librosa_np()
         if librosa is None or np is None:
             self.logger(f"[WARN] librosa/numpy not available. Skipping BPM/genre for: {filepath}")
             return result

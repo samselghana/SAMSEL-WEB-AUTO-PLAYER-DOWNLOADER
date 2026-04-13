@@ -3,6 +3,8 @@ SAMSEL Web — static server + health + AutoMix API.
 Run:  py -3.10 -m uvicorn server:app --host 0.0.0.0 --port 8765
        Or set SAMSEL_PORT (e.g. 8766) and use --port %SAMSEL_PORT%; /api/health reports the port.
 
+Railway: use GET /health for deploy healthcheck (plain ok). Heavy deps load lazily so startup stays fast.
+
 Home Wi‑Fi phones: http://<PC-LAN-IP>:<port> and SAMSEL_AUTOMIX_LAN=1 (firewall: open_samsel_port.bat).
 
 Cloudflare / internet:
@@ -60,6 +62,12 @@ if _cors_raw:
 app.include_router(automix_router)
 
 
+@app.get("/health")
+def health_railway():
+    """Minimal probe for Railway / load balancers (no imports, no socket work)."""
+    return Response(content="ok", media_type="text/plain", headers=_CORS_PUBLIC)
+
+
 @app.options("/{path:path}")
 async def global_options_preflight(path: str):
     """Catch-all OPTIONS so CORS preflights succeed even without SAMSEL_CORS_ORIGINS."""
@@ -80,6 +88,8 @@ def _server_port() -> str:
 
 def _primary_lan_ipv4() -> str | None:
     """Best-effort LAN address for 'open on phone' hints (may be wrong with VPNs / multiple NICs)."""
+    if os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"):
+        return None
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:

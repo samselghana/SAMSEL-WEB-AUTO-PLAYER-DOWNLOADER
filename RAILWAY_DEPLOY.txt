@@ -27,7 +27,8 @@ server.py and server:app — Procfile and python -m / __main__ match that.
      SAMSEL_WEB_BUILD=4
 
 5. After deploy, open the Railway URL (e.g. https://your-app.up.railway.app).
-   Health:  .../api/health
+   Deploy probe: .../health  (plain "ok" — use this for Railway healthcheck)
+   Full JSON:    .../api/health
 
 6. Jingle file: Railway’s filesystem is ephemeral. To ship a default jingle,
    add the MP3 to the repo (e.g. assets/jingle.mp3) and set SAMSEL_JINGLE_PATH
