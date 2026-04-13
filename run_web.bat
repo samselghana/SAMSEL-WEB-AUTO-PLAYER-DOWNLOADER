@@ -27,6 +27,7 @@ py -3.10 -m pip install -r requirements.txt -q
 
 echo.
 echo ========== SAMSEL Web ==========
+echo Custom domain (Option A): run tunnel_option_a_run.bat in a second window — see OPTION_A_TUNNEL_CHECKLIST.txt
 echo This PC browser:  http://127.0.0.1:%SAMSEL_PORT%/
 py -3.10 phone_url_print.py
 echo.

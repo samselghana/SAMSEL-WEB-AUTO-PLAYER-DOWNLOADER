@@ -1,0 +1,73 @@
+================================================================================
+OPTION A — samsel-automix.com (single host) -> your PC (uvicorn on port 8765)
+================================================================================
+
+Goal: Opening https://samsel-automix.com serves the SAME app as http://127.0.0.1:8765
+      including /api/health, /api/jingle/*, /api/automix/*, and static files.
+
+--------------------------------------------------------------------------------
+A. Free the hostname in Cloudflare (fixes "DNS managed by Workers")
+--------------------------------------------------------------------------------
+1. Cloudflare Dashboard -> your zone (samsel-automix.com)
+2. Workers & Pages -> each project -> Custom domains / Triggers
+   Remove samsel-automix.com and www if listed there.
+3. DNS -> Records: you should NOT need a conflicting A/AAAA to Pages for @.
+   The tunnel setup will create or expect a CNAME for the tunnel (dashboard does this).
+
+--------------------------------------------------------------------------------
+B. Create or reuse a Named Tunnel
+--------------------------------------------------------------------------------
+1. Zero Trust (https://one.dash.cloudflare.com/) -> Networks -> Tunnels
+2. Create a tunnel (e.g. name: samsel-automix) OR select an existing one.
+3. Install connector: run on this PC once:
+     cloudflared tunnel login
+   (Pick the zone that owns samsel-automix.com.)
+
+4. If creating new tunnel from CLI instead of dashboard:
+     cloudflared tunnel create samsel-automix
+   Then in dashboard add Public Hostname as in step C.
+
+--------------------------------------------------------------------------------
+C. Public Hostname (routing)
+--------------------------------------------------------------------------------
+In the tunnel -> Configure -> Public Hostname:
+
+  Subdomain: @
+  Domain:    samsel-automix.com
+  Service:   Type = HTTP
+             URL   = http://127.0.0.1:8765
+
+If your SAMSEL_PORT is not 8765, use that port in the URL instead.
+
+Optional www:
+  Subdomain: www
+  Domain:    samsel-automix.com
+  Same HTTP URL, OR use Cloudflare Redirect Rules @ -> www (your choice).
+
+--------------------------------------------------------------------------------
+D. Run on your PC (every time)
+--------------------------------------------------------------------------------
+  Window 1:  run_web.bat
+  Window 2:  tunnel_option_a_run.bat
+
+Edit tunnel_option_a_run.bat or set env var before running:
+  set SAMSEL_CF_TUNNEL_NAME=your-exact-tunnel-name
+  tunnel_option_a_run.bat
+
+To see tunnel names:  cloudflared tunnel list
+
+--------------------------------------------------------------------------------
+E. Verify
+--------------------------------------------------------------------------------
+  Browser: https://samsel-automix.com/api/health
+  Expect: JSON with "ok": true and "web_build"
+
+  Page source should show samsel-web-build meta; jingle lock uses same origin.
+
+--------------------------------------------------------------------------------
+F. data-samsel-api-base
+--------------------------------------------------------------------------------
+Leave empty on <html> when using Option A (same host serves UI + API):
+  data-samsel-api-base=""
+
+================================================================================
