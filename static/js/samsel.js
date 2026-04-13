@@ -2772,7 +2772,9 @@
             }
           }
         })
-        .catch(function () {});
+        .catch(function (err) {
+          console.warn("SAMSEL: jingle config request failed — jingle lock/UI will not update.", url, err);
+        });
     })();
 
     document.querySelectorAll(".tab").forEach(function (tab) {
