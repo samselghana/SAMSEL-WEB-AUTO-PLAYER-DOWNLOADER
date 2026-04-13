@@ -1,0 +1,37 @@
+================================================================================
+Deploy SAMSEL Web on Railway
+================================================================================
+
+1. Push this repo to GitHub (or connect the folder).
+
+2. Railway -> New Project -> Deploy from GitHub -> select the repo.
+   Root directory: samsel_web (if the repo root is the parent folder, set
+   "Root Directory" in Railway service settings to samsel_web).
+
+3. Railway detects Dockerfile + railway.toml and builds the image.
+
+4. Variables (Service -> Variables) — set as needed:
+
+   Required for public Downloader / AutoMix over the internet:
+     SAMSEL_AUTOMIX_ALLOW_REMOTE=1
+     SAMSEL_AUTOMIX_TOKEN=<long random secret>
+   (Do NOT set SAMSEL_AUTOMIX_NO_TOKEN=1 on a public URL.)
+
+   Optional:
+     SAMSEL_CORS_ORIGINS=https://your-pages-site.com
+     SAMSEL_JINGLE_UPLOADS=0
+     SAMSEL_JINGLE_PATH=/app/assets/your-jingle.mp3   (must exist in image or volume)
+     SAMSEL_WEB_BUILD=4
+
+5. After deploy, open the Railway URL (e.g. https://your-app.up.railway.app).
+   Health:  .../api/health
+
+6. Jingle file: Railway’s filesystem is ephemeral. To ship a default jingle,
+   add the MP3 to the repo (e.g. assets/jingle.mp3) and set SAMSEL_JINGLE_PATH
+   to that path inside the container, or use a volume (Railway volume mount).
+
+7. Output folder: config still uses server paths; remote sessions use temp dirs
+   under the container (see automix_routes). For persistent downloads on the
+   server, attach a Railway volume and point output_dir in the UI/config.
+
+================================================================================
