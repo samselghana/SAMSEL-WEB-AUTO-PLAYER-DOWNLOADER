@@ -171,3 +171,13 @@ if _CAMO.is_dir():
     app.mount("/camo", StaticFiles(directory=str(_CAMO)), name="camouflage")
 
 app.mount("/", StaticFiles(directory=str(STATIC), html=True), name="static")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    # Railway sets PORT; local dev often uses SAMSEL_PORT or 8765.
+    _port = int(
+        (os.environ.get("PORT") or os.environ.get("SAMSEL_PORT") or "8765").strip() or "8765"
+    )
+    uvicorn.run("server:app", host="0.0.0.0", port=_port)

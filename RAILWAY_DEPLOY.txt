@@ -2,6 +2,9 @@
 Deploy SAMSEL Web on Railway
 ================================================================================
 
+Note: Generic Railway tutorials use main.py and main:app. This project uses
+server.py and server:app — Procfile and python -m / __main__ match that.
+
 1. Push this repo to GitHub (or connect the folder).
 
 2. Railway -> New Project -> Deploy from GitHub -> select the repo.
