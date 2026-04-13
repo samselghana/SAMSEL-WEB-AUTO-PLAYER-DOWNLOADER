@@ -79,6 +79,40 @@
     return document.getElementById(id);
   }
 
+  /** Same as automix.js: UI on Pages + API on tunnel — set data-samsel-api-base on <html> (no trailing slash). */
+  function getApiBase() {
+    try {
+      var html = document.documentElement;
+      var b =
+        (html && html.getAttribute && html.getAttribute("data-samsel-api-base")) || "";
+      b = (b || "").trim();
+      if (!b) {
+        var m = document.querySelector('meta[name="samsel-api-base"]');
+        if (m) b = (m.getAttribute("content") || "").trim();
+      }
+      return b.replace(/\/$/, "");
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function resolveApiUrl(pathOrUrl) {
+    if (!pathOrUrl) return pathOrUrl;
+    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
+    var base = getApiBase();
+    if (!base) return pathOrUrl;
+    var p = pathOrUrl.charAt(0) === "/" ? pathOrUrl : "/" + pathOrUrl;
+    return base + p;
+  }
+
+  function revokeJingleUrlIfBlob() {
+    if (jingleUrl && String(jingleUrl).indexOf("blob:") === 0) {
+      try {
+        URL.revokeObjectURL(jingleUrl);
+      } catch (e) {}
+    }
+  }
+
   function fmtTime(sec) {
     if (!isFinite(sec) || sec < 0) return "00:00";
     var m = Math.floor(sec / 60),
@@ -2678,7 +2712,7 @@
     $("jg-file").onchange = function (e) {
       if (jingleLocked) { e.target.value = ""; return; }
       var f = e.target.files && e.target.files[0];
-      if (jingleUrl) URL.revokeObjectURL(jingleUrl);
+      revokeJingleUrlIfBlob();
       jingleUrl = f ? URL.createObjectURL(f) : null;
       audioJingle.src = jingleUrl || "";
       $("jg-name").textContent = f ? f.name : "—";
@@ -2713,8 +2747,12 @@
     };
 
     (function fetchJingleConfig() {
-      fetch("/api/jingle/config")
-        .then(function (r) { return r.json(); })
+      var url = resolveApiUrl("/api/jingle/config");
+      fetch(url, { credentials: "omit", cache: "no-store" })
+        .then(function (r) {
+          if (!r.ok) return Promise.reject(new Error("jingle config " + r.status));
+          return r.json();
+        })
         .then(function (cfg) {
           if (!cfg.uploads_enabled) {
             jingleLocked = true;
@@ -2727,8 +2765,8 @@
             var atHard = $("jg-at-hard");
             if (atHard) { atHard.checked = true; atHard.disabled = true; }
             if (cfg.has_default_jingle) {
-              if (jingleUrl) URL.revokeObjectURL(jingleUrl);
-              jingleUrl = "/api/jingle/default";
+              revokeJingleUrlIfBlob();
+              jingleUrl = resolveApiUrl("/api/jingle/default");
               audioJingle.src = jingleUrl;
               $("jg-name").textContent = cfg.default_jingle_name || "Default jingle";
             }

@@ -19,7 +19,7 @@ import socket
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
@@ -38,7 +38,10 @@ _JINGLE_PATH_RAW = os.environ.get("SAMSEL_JINGLE_PATH", "").strip()
 _JINGLE_PATH = Path(_JINGLE_PATH_RAW) if _JINGLE_PATH_RAW else None
 
 # Bump with static HTML: <meta name="samsel-web-build"> and all asset ?v= query params.
-_WEB_BUILD = (os.environ.get("SAMSEL_WEB_BUILD") or "3").strip() or "3"
+_WEB_BUILD = (os.environ.get("SAMSEL_WEB_BUILD") or "4").strip() or "4"
+
+# So static UI on another host (e.g. Cloudflare Pages) can call health / jingle without SAMSEL_CORS_ORIGINS.
+_CORS_PUBLIC = {"Access-Control-Allow-Origin": "*"}
 
 app = FastAPI(title="SAMSEL Web", version="1.0.0")
 
@@ -97,15 +100,18 @@ def health():
     port = _server_port()
     lan = _primary_lan_ipv4()
     phone_url = f"http://{lan}:{port}/" if lan else None
-    return {
-        "ok": True,
-        "service": "samsel-web",
-        "version": "1.0.0",
-        "web_build": _WEB_BUILD,
-        "port": port,
-        "lan_ip": lan,
-        "phone_url": phone_url,
-    }
+    return JSONResponse(
+        content={
+            "ok": True,
+            "service": "samsel-web",
+            "version": "1.0.0",
+            "web_build": _WEB_BUILD,
+            "port": port,
+            "lan_ip": lan,
+            "phone_url": phone_url,
+        },
+        headers=_CORS_PUBLIC,
+    )
 
 
 @app.get("/logo.png")
@@ -125,11 +131,14 @@ def logo_png():
 def jingle_config():
     """Tell the frontend whether user uploads are allowed and if a default jingle exists."""
     has_default = bool(_JINGLE_PATH and _JINGLE_PATH.is_file())
-    return {
-        "uploads_enabled": _JINGLE_UPLOADS_ENABLED,
-        "has_default_jingle": has_default,
-        "default_jingle_name": _JINGLE_PATH.name if has_default else None,
-    }
+    return JSONResponse(
+        content={
+            "uploads_enabled": _JINGLE_UPLOADS_ENABLED,
+            "has_default_jingle": has_default,
+            "default_jingle_name": _JINGLE_PATH.name if has_default else None,
+        },
+        headers=_CORS_PUBLIC,
+    )
 
 
 @app.get("/api/jingle/default")
@@ -141,7 +150,7 @@ def jingle_default():
         _JINGLE_PATH,
         media_type="audio/mpeg",
         filename=_JINGLE_PATH.name,
-        headers={"Cache-Control": "public, max-age=86400"},
+        headers={"Cache-Control": "public, max-age=86400", **_CORS_PUBLIC},
     )
 
 
