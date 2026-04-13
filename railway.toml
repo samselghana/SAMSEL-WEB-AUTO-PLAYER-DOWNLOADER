@@ -4,7 +4,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# /health responds before AutoMix stack finishes importing (see server.py lifespan).
+# Plain GET /health (see server.py). Clear any custom Start Command in Railway UI so Dockerfile ENTRYPOINT runs.
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

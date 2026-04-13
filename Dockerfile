@@ -9,13 +9,20 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Slim deps for small Railway instances (avoids OOM during boot). Full stack: use requirements.txt.
+COPY requirements-docker.txt requirements-docker.txt
+RUN pip install --no-cache-dir -r requirements-docker.txt
 
 COPY . .
 
-# Railway sets PORT; default matches local dev fallback
+# Fail the image build if the app cannot import (surfaces errors before deploy healthcheck).
+RUN python -c "import server; print('server import ok')"
+
+# Windows CRLF in repo can break shebang on Linux
+RUN sed -i 's/\r$//' /app/docker/entrypoint.sh && chmod +x /app/docker/entrypoint.sh
+
+# Railway injects PORT at runtime; entrypoint expands it reliably.
 ENV PYTHONUNBUFFERED=1
 EXPOSE 8080
 
-CMD sh -c 'uvicorn server:app --host 0.0.0.0 --port "${PORT:-8080}"'
+ENTRYPOINT ["/bin/sh", "/app/docker/entrypoint.sh"]

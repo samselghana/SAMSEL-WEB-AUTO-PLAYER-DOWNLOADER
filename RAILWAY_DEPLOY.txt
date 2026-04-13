@@ -11,6 +11,13 @@ server.py and server:app — Procfile and python -m / __main__ match that.
    Root directory: samsel_web (if the repo root is the parent folder, set
    "Root Directory" in Railway service settings to samsel_web).
 
+   If healthchecks fail with "service unavailable": open the **Deploy** log (not
+   only Build). Common fixes:
+   - Service -> Settings -> **clear Custom Start Command** (must use Dockerfile ENTRYPOINT).
+   - Ensure **Root Directory** is the folder that contains server.py + Dockerfile.
+   - Docker image uses **requirements-docker.txt** (slim, no librosa) to avoid OOM on small plans.
+     For full BPM/genre analysis in the container, change Dockerfile to pip install -r requirements.txt instead.
+
 3. Railway detects Dockerfile + railway.toml and builds the image.
 
 4. Variables (Service -> Variables) — set as needed:
