@@ -37,6 +37,9 @@ _JINGLE_UPLOADS_ENABLED = os.environ.get("SAMSEL_JINGLE_UPLOADS", "1").strip() !
 _JINGLE_PATH_RAW = os.environ.get("SAMSEL_JINGLE_PATH", "").strip()
 _JINGLE_PATH = Path(_JINGLE_PATH_RAW) if _JINGLE_PATH_RAW else None
 
+# Bump with static HTML: <meta name="samsel-web-build"> and all asset ?v= query params.
+_WEB_BUILD = (os.environ.get("SAMSEL_WEB_BUILD") or "3").strip() or "3"
+
 app = FastAPI(title="SAMSEL Web", version="1.0.0")
 
 _cors_raw = os.environ.get("SAMSEL_CORS_ORIGINS", "").strip()
@@ -98,6 +101,7 @@ def health():
         "ok": True,
         "service": "samsel-web",
         "version": "1.0.0",
+        "web_build": _WEB_BUILD,
         "port": port,
         "lan_ip": lan,
         "phone_url": phone_url,

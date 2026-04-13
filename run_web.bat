@@ -20,6 +20,9 @@ set SAMSEL_JINGLE_UPLOADS=0
 REM Absolute path to the default jingle MP3 that plays at every track transition.
 set SAMSEL_JINGLE_PATH=c:\Users\pc\SAMSEL_AutoMix_Jingle_3.mp3
 
+REM After a deploy, verify: open https://your-domain/api/health — "web_build" must match
+REM static/index.html <meta name="samsel-web-build"> and ?v= on CSS/JS. Bump all three next release.
+
 py -3.10 -m pip install -r requirements.txt -q
 
 echo.
