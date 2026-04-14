@@ -105,6 +105,74 @@
     return base + p;
   }
 
+  function getWebBuild() {
+    try {
+      var m = document.querySelector('meta[name="samsel-web-build"]');
+      return ((m && m.getAttribute("content")) || "").trim() || "0";
+    } catch (e) {
+      return "0";
+    }
+  }
+
+  /** Same-origin jingle stream: drop crossOrigin so Cloudflare/proxies behave like 127.0.0.1. */
+  function setJingleStreamSrc(absUrl) {
+    try {
+      var pageOrigin = window.location.origin;
+      var u = new URL(absUrl, pageOrigin);
+      if (u.origin === pageOrigin) {
+        audioJingle.removeAttribute("crossOrigin");
+      } else {
+        audioJingle.crossOrigin = "anonymous";
+      }
+      audioJingle.src = absUrl;
+    } catch (e) {
+      audioJingle.crossOrigin = "anonymous";
+      audioJingle.src = absUrl;
+    }
+  }
+
+  /** Host for default jingle stream: explicit API base (split hosting) or current page (Option A / tunnel same host). */
+  function defaultJingleStreamBaseOrigin() {
+    var base = getApiBase();
+    if (!base) return window.location.origin;
+    try {
+      return new URL(base, window.location.href).origin;
+    } catch (e) {
+      return window.location.origin;
+    }
+  }
+
+  /** Config URL candidates: page origin first (fixes stale data-samsel-api-base hitting an old tunnel that still 200s), then API base / primary. */
+  function jingleConfigUrlsToTry() {
+    var list = [];
+    var seen = {};
+    function addCandidate(u) {
+      if (!u) return;
+      try {
+        var abs = new URL(u, window.location.href).href;
+        if (seen[abs]) return;
+        seen[abs] = true;
+        list.push(abs);
+      } catch (e) {}
+    }
+    addCandidate(window.location.origin + "/api/jingle/config");
+    var primary = resolveApiUrl("/api/jingle/config");
+    addCandidate(primary);
+    try {
+      var pOrigin = new URL(primary, window.location.href).origin;
+      var pageOrigin = window.location.origin;
+      if (pOrigin !== pageOrigin) {
+        addCandidate(pageOrigin + "/api/jingle/config");
+      }
+    } catch (e) {}
+    return list;
+  }
+
+  function jingleConfigUrlWithBuster(absUrl) {
+    var sep = absUrl.indexOf("?") >= 0 ? "&" : "?";
+    return absUrl + sep + "_cfg=" + String(Date.now());
+  }
+
   function revokeJingleUrlIfBlob() {
     if (jingleUrl && String(jingleUrl).indexOf("blob:") === 0) {
       try {
@@ -2746,35 +2814,67 @@
       if (gainMain) gainMain.gain.value = masterLinear;
     };
 
-    (function fetchJingleConfig() {
-      var url = resolveApiUrl("/api/jingle/config");
-      fetch(url, { credentials: "omit", cache: "no-store" })
+    function applyJingleConfig(cfg) {
+      if (!cfg.uploads_enabled) {
+        jingleLocked = true;
+        var fileBtn = $("jg-file");
+        if (fileBtn) fileBtn.closest(".row-inline").style.display = "none";
+        var en = $("jg-enable");
+        if (en) {
+          en.checked = true;
+          en.disabled = true;
+        }
+        var atXf = $("jg-at-xf");
+        if (atXf) {
+          atXf.checked = true;
+          atXf.disabled = true;
+        }
+        var atHard = $("jg-at-hard");
+        if (atHard) {
+          atHard.checked = true;
+          atHard.disabled = true;
+        }
+      }
+      if (cfg.has_default_jingle) {
+        revokeJingleUrlIfBlob();
+        jingleUrl =
+          defaultJingleStreamBaseOrigin() +
+          "/api/jingle/default?wb=" +
+          encodeURIComponent(getWebBuild()) +
+          "&t=" +
+          String(Date.now());
+        setJingleStreamSrc(jingleUrl);
+        var jnm = $("jg-name");
+        if (jnm) jnm.textContent = cfg.default_jingle_name || "Default jingle";
+        if (cfg.uploads_enabled) {
+          var jgEn = $("jg-enable");
+          if (jgEn && !jgEn.disabled) jgEn.checked = true;
+        }
+      }
+    }
+
+    function fetchJingleConfigAttempt(urls, index) {
+      if (index >= urls.length) {
+        console.warn("SAMSEL: jingle /api/jingle/config failed for all URLs (check tunnel + data-samsel-api-base).", urls);
+        return;
+      }
+      var url = urls[index];
+      fetch(jingleConfigUrlWithBuster(url), { credentials: "omit", cache: "no-store" })
         .then(function (r) {
           if (!r.ok) return Promise.reject(new Error("jingle config " + r.status));
           return r.json();
         })
         .then(function (cfg) {
-          if (!cfg.uploads_enabled) {
-            jingleLocked = true;
-            var fileBtn = $("jg-file");
-            if (fileBtn) fileBtn.closest(".row-inline").style.display = "none";
-            var en = $("jg-enable");
-            if (en) { en.checked = true; en.disabled = true; }
-            var atXf = $("jg-at-xf");
-            if (atXf) { atXf.checked = true; atXf.disabled = true; }
-            var atHard = $("jg-at-hard");
-            if (atHard) { atHard.checked = true; atHard.disabled = true; }
-            if (cfg.has_default_jingle) {
-              revokeJingleUrlIfBlob();
-              jingleUrl = resolveApiUrl("/api/jingle/default");
-              audioJingle.src = jingleUrl;
-              $("jg-name").textContent = cfg.default_jingle_name || "Default jingle";
-            }
-          }
+          applyJingleConfig(cfg);
         })
         .catch(function (err) {
-          console.warn("SAMSEL: jingle config request failed — jingle lock/UI will not update.", url, err);
+          console.warn("SAMSEL: jingle config try failed:", url, err);
+          fetchJingleConfigAttempt(urls, index + 1);
         });
+    }
+
+    (function fetchJingleConfig() {
+      fetchJingleConfigAttempt(jingleConfigUrlsToTry(), 0);
     })();
 
     document.querySelectorAll(".tab").forEach(function (tab) {

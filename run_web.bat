@@ -17,8 +17,11 @@ REM ── Jingle control ──
 REM Set to 0 to DISABLE user jingle uploads (lock to the default jingle below).
 REM Set to 1 (or leave unset) to ALLOW users to pick their own jingle file.
 set SAMSEL_JINGLE_UPLOADS=0
-REM Absolute path to the default jingle MP3 that plays at every track transition.
-set SAMSEL_JINGLE_PATH=c:\Users\pc\SAMSEL_AutoMix_Jingle_3.mp3
+REM server.py tries each path in order (;). First hit wins. Put the file next to server.py for portable packs.
+set "SAMSEL_JINGLE_PATH=%~dp0SAMSEL_AutoMix_Jingle_3.mp3;%USERPROFILE%\base\SAMSEL_WEB\SAMSEL-WEB-ENGINE\SAMSEL_AutoMix_Jingle_3.mp3"
+REM Extra engine roots (;) — used if SAMSEL_JINGLE_PATH segments all miss (optional).
+if not defined SAMSEL_WEB_ENGINE set "SAMSEL_WEB_ENGINE=%USERPROFILE%\base\SAMSEL_WEB\SAMSEL-WEB-ENGINE"
+REM Log which jingle file loaded: set SAMSEL_JINGLE_LOG=1
 
 REM After a deploy, verify: open https://your-domain/api/health — "web_build" must match
 REM static/index.html <meta name="samsel-web-build"> and ?v= on CSS/JS. Bump all three next release.

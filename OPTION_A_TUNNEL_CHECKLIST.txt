@@ -19,9 +19,17 @@ B. Create or reuse a Named Tunnel
 --------------------------------------------------------------------------------
 1. Zero Trust (https://one.dash.cloudflare.com/) -> Networks -> Tunnels
 2. Create a tunnel (e.g. name: samsel-automix) OR select an existing one.
-3. Install connector: run on this PC once:
+3. Install connector + origin certificate (required once per Windows user account):
      cloudflared tunnel login
-   (Pick the zone that owns samsel-automix.com.)
+   A browser window opens — sign in to Cloudflare and select the zone that owns
+   samsel-automix.com. This downloads cert.pem to:
+     Windows:  %USERPROFILE%\.cloudflared\cert.pem
+   If tunnel_option_a_run.bat errors with:
+     "Cannot determine default origin certificate path" / "origincert"
+   you have not run tunnel login on this PC (or cert is in another user profile).
+   Fix: run cloudflared tunnel login again, or set:
+     set TUNNEL_ORIGIN_CERT=C:\Users\YOU\.cloudflared\cert.pem
+   tunnel_option_a_run.bat auto-sets TUNNEL_ORIGIN_CERT when that file exists.
 
 4. If creating new tunnel from CLI instead of dashboard:
      cloudflared tunnel create samsel-automix
@@ -69,5 +77,78 @@ F. data-samsel-api-base
 --------------------------------------------------------------------------------
 Leave empty on <html> when using Option A (same host serves UI + API):
   data-samsel-api-base=""
+
+If jingle works on http://127.0.0.1:8765/ but not on https://samsel-automix.com:
+  • Ensure <html data-samsel-api-base=""> is empty (or meta samsel-api-base unset). A leftover
+    https://*.trycloudflare.com URL sends /api/jingle/* to the wrong host.
+  • If the public site is Cloudflare Pages and only the API is tunneled, set data-samsel-api-base
+    to that API origin (see static/index.html comment). Static v6+ retries the page origin if
+    the configured base fails.
+
+--------------------------------------------------------------------------------
+G. 502 Bad Gateway — "Unable to reach the origin service" (cloudflared)
+--------------------------------------------------------------------------------
+The tunnel reaches Cloudflare, but cloudflared on your PC cannot proxy to the app.
+
+Check in order:
+  1) run_web.bat (uvicorn) is running in another window.
+  2) Same port everywhere: run_web.bat, tunnel bats, and Cloudflare Public Hostname.
+     Open: http://127.0.0.1:8765/health  — expect plain text "ok".
+     If you use SAMSEL_PORT=8766, the Public Hostname URL must be http://127.0.0.1:8766
+  3) Public Hostname "Service" must be:
+       Type: HTTP
+       URL:  http://127.0.0.1:<PORT>
+     Do NOT use https:// to reach uvicorn (no TLS on localhost).
+     Prefer 127.0.0.1 over "localhost" (some systems resolve localhost to ::1 while the
+     server only listens on IPv4 — connection refused → 502).
+  4) Read cloudflared output while reproducing: look for "connection refused" or wrong port.
+  5) Quick trycloudflare script: tunnel_cloudflare.bat probes /health before starting.
+
+--------------------------------------------------------------------------------
+H. Default jingle for https://samsel-automix.com
+--------------------------------------------------------------------------------
+The public site is only a tunnel to THIS PC. The default transition jingle is NOT set in
+Cloudflare DNS — it comes from server.py + environment when you run run_web.bat.
+
+  • run_web.bat sets SAMSEL_JINGLE_PATH to the first path that exists: samsel_web copy, then
+    SAMSEL-WEB-ENGINE copy, then %~dp0. It also sets SAMSEL_WEB_ENGINE so server.py can load
+    SAMSEL_AutoMix_Jingle_3.mp3 from the engine folder if it is missing under samsel_web.
+    SAMSEL_JINGLE_UPLOADS=0 locks the UI to that default (set 1 to allow user overrides).
+  • If you still see default_jingle_name "default-jingle.mp3", the AutoMix file was not found
+    on disk — copy SAMSEL_AutoMix_Jingle_3.mp3 into samsel_web or fix SAMSEL_WEB_ENGINE.
+
+Verify after run_web.bat + tunnel:
+  https://samsel-automix.com/api/jingle/config
+  Expect: "has_default_jingle": true, "default_jingle_name": "SAMSEL_AutoMix_Jingle_3.mp3",
+  and "jingle_source" NOT "bundled" (bundled means only assets/default-jingle.mp3 was found).
+  If you still see bundled: copy SAMSEL_AutoMix_Jingle_3.mp3 next to server.py, or fix paths in
+  run_web.bat (SAMSEL_JINGLE_PATH uses semicolon-separated candidates). Restart uvicorn after edits.
+  Optional: SAMSEL_JINGLE_LOG=1 logs the resolved path to stderr at startup.
+
+--------------------------------------------------------------------------------
+I. trycloudflare.com works but samsel-automix.com does not (different jingle / stale JSON)
+--------------------------------------------------------------------------------
+Those hostnames are NOT the same tunnel unless you configured them that way.
+
+  • Quick tunnel (tunnel_cloudflare.bat) → random *.trycloudflare.com → cloudflared on THIS PC
+    right now. It always hits the uvicorn you have running locally today.
+
+  • samsel-automix.com → Zero Trust “named” tunnel + Public Hostname + DNS. It only matches
+    your PC if:
+      - tunnel_option_a_run.bat (or a service) is running the connector for THAT tunnel name
+      - on the SAME machine that runs run_web.bat with the SAME server.py and jingle files
+      - Public Hostname service URL matches SAMSEL_PORT (e.g. http://127.0.0.1:8765)
+
+  If the apex domain still shows old jingle_source (e.g. bundled) or default-jingle.mp3:
+      1) Compare in two tabs (hard refresh / private window):
+           https://YOUR.trycloudflare.com/api/health
+           https://samsel-automix.com/api/health
+         Check "jingle_source" and "default_jingle_name" — they should match if both hit
+         the same uvicorn. If they differ, the custom domain is not reaching this PC’s app.
+      2) Purge Cloudflare cache for the zone or add a Cache Rule: bypass cache for URI Path
+         containing /api/ (origin now sends Cache-Control: no-store on jingle + /api/health).
+      3) Remove samsel-automix.com from Workers/Pages custom domains if it should only use
+         the tunnel (see section A).
+      4) Ensure no second old server (VPS, Docker, another PC) is still the tunnel target.
 
 ================================================================================

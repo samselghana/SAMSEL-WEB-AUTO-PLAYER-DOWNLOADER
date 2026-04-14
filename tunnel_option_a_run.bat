@@ -9,6 +9,9 @@ REM Before first run (Cloudflare dashboard — do once):
 REM   1) Workers & Pages: remove custom domain from samsel-automix.com if you see
 REM      "DNS managed by Workers" (apex must be free for the tunnel CNAME).
 REM   2) Zero Trust -> Networks -> Tunnels -> Create tunnel (or open existing).
+REM   2b) On THIS Windows user, once:  cloudflared tunnel login
+REM        (Browser opens — pick the account/zone for samsel-automix.com.)
+REM        Creates cert.pem under %USERPROFILE%\.cloudflared\  — required for "tunnel run".
 REM   3) Public hostname:
 REM        Subdomain: @     Domain: samsel-automix.com
 REM        Type: HTTP      URL: http://127.0.0.1:%SAMSEL_PORT%
@@ -26,6 +29,11 @@ echo.
 echo  Option A: cloudflared tunnel run "%SAMSEL_CF_TUNNEL_NAME%"
 echo  Service on this PC must be: http://127.0.0.1:%SAMSEL_PORT%  (run_web.bat)
 echo.
+echo  502 Bad Gateway / Unable to reach origin:
+echo    - Zero Trust -^> Tunnels -^> your tunnel -^> Public Hostname: Service URL must be
+echo      Type HTTP, URL http://127.0.0.1:%SAMSEL_PORT%  ^(not https, not localhost^).
+echo    - run_web.bat must be running; test http://127.0.0.1:%SAMSEL_PORT%/health locally.
+echo.
 
 where cloudflared >nul 2>&1
 if errorlevel 1 (
@@ -35,7 +43,35 @@ if errorlevel 1 (
   exit /b 1
 )
 
-cloudflared tunnel run "%SAMSEL_CF_TUNNEL_NAME%"
+REM Origin certificate (fixes: Cannot determine default origin certificate path / origincert)
+if not defined TUNNEL_ORIGIN_CERT (
+  if exist "%USERPROFILE%\.cloudflared\cert.pem" set "TUNNEL_ORIGIN_CERT=%USERPROFILE%\.cloudflared\cert.pem"
+)
+if not defined TUNNEL_ORIGIN_CERT (
+  if exist "%USERPROFILE%\.cloudflare-warp\cert.pem" set "TUNNEL_ORIGIN_CERT=%USERPROFILE%\.cloudflare-warp\cert.pem"
+)
+if not defined TUNNEL_ORIGIN_CERT (
+  echo [ERROR] Missing Cloudflare origin certificate ^(cert.pem^).
+  echo   Named tunnels need a one-time login on this PC. Run in CMD:
+  echo     cloudflared tunnel login
+  echo   Sign in and select the zone that contains samsel-automix.com.
+  echo   That creates:  %USERPROFILE%\.cloudflared\cert.pem
+  echo   Or set TUNNEL_ORIGIN_CERT^=C:\full\path\to\cert.pem  then run this bat again.
+  echo.
+  pause
+  exit /b 1
+)
+echo Using origin cert: %TUNNEL_ORIGIN_CERT%
+
+powershell -NoProfile -Command "try { $u = 'http://127.0.0.1:%SAMSEL_PORT%/health'; $r = Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 4; if ($r.StatusCode -eq 200) { exit 0 } } catch { }; exit 1" >nul 2>&1
+if errorlevel 1 (
+  echo [WARN] No HTTP 200 from http://127.0.0.1:%SAMSEL_PORT%/health
+  echo        Start run_web.bat first and match SAMSEL_PORT, or fix the Public Hostname port in Cloudflare.
+  echo.
+  pause
+)
+
+cloudflared tunnel --origincert "%TUNNEL_ORIGIN_CERT%" run "%SAMSEL_CF_TUNNEL_NAME%"
 echo.
 echo Tunnel exited.
 pause

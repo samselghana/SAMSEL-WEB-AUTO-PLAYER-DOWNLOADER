@@ -17,7 +17,9 @@ Cloudflare / internet:
     and on the static page set data-samsel-api-base="https://your-tunnel-host" on <html> (no trailing slash).
 """
 import os
+import re
 import socket
+import sys
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -34,26 +36,126 @@ LOGO_PNG = _BASE / "logo.png"
 # ── Jingle control ──────────────────────────────────────────────────
 # SAMSEL_JINGLE_UPLOADS=0  → disable user jingle uploads (lock to default)
 # SAMSEL_JINGLE_UPLOADS=1  → allow user jingle uploads  (default)
-# SAMSEL_JINGLE_PATH       → optional; absolute path to default jingle MP3 (overrides bundle)
-# If unset or missing, uses assets/default-jingle.mp3 when that file exists (e.g. Railway image).
+# SAMSEL_JINGLE_PATH       → one or more paths separated by ;  (first existing file wins)
+# SAMSEL_WEB_ENGINE        → one or more folders; each checked for SAMSEL_AutoMix_Jingle_3.mp3
+# Auto-probes: samsel_web sibling folders, then %USERPROFILE%\base\SAMSEL_WEB\SAMSEL-WEB-ENGINE\...
+# Last resort: assets/SAMSEL_AutoMix_Jingle_3.mp3, then assets/default-jingle.mp3
 _JINGLE_UPLOADS_ENABLED = os.environ.get("SAMSEL_JINGLE_UPLOADS", "1").strip() != "0"
-_JINGLE_PATH_RAW = os.environ.get("SAMSEL_JINGLE_PATH", "").strip()
-_JINGLE_PATH = None
-if _JINGLE_PATH_RAW:
-    _p = Path(_JINGLE_PATH_RAW).expanduser()
-    _p = _p.resolve() if _p.is_absolute() else (_BASE / _p).resolve()
-    if _p.is_file():
-        _JINGLE_PATH = _p
-if _JINGLE_PATH is None:
-    _bundled = (_BASE / "assets" / "default-jingle.mp3").resolve()
-    if _bundled.is_file():
-        _JINGLE_PATH = _bundled
+_JINGLE_NAME = "SAMSEL_AutoMix_Jingle_3.mp3"
+# Optional: override default_jingle_name in /api/jingle/config (and download filename) only.
+_JINGLE_DISPLAY_NAME = (os.environ.get("SAMSEL_JINGLE_DISPLAY_NAME") or "").strip()
+
+
+def _resolve_one_path(raw: str) -> Path | None:
+    raw = raw.strip()
+    if not raw:
+        return None
+    p = Path(raw).expanduser()
+    p = p.resolve() if p.is_absolute() else (_BASE / p).resolve()
+    return p if p.is_file() else None
+
+
+def _is_bundled_placeholder_jingle(p: Path) -> bool:
+    return p.name.lower() == "default-jingle.mp3"
+
+
+def _resolve_jingle_path() -> tuple[Path | None, str]:
+    # 1) SAMSEL_JINGLE_PATH (;-separated) — ignore segments that resolve to the tiny placeholder only
+    raw_paths = os.environ.get("SAMSEL_JINGLE_PATH", "").strip()
+    if raw_paths:
+        for segment in re.split(r"[;|]", raw_paths):
+            hit = _resolve_one_path(segment)
+            if hit is not None and not _is_bundled_placeholder_jingle(hit):
+                return hit, "env_path"
+
+    # 2) Next to server.py
+    sidecar = (_BASE / _JINGLE_NAME).resolve()
+    if sidecar.is_file():
+        return sidecar, "samsel_web"
+
+    # 2b) Shipped with samsel_web (works on tunnel PCs with no engine clone / no env)
+    _pack = (_BASE / "assets" / _JINGLE_NAME).resolve()
+    if _pack.is_file():
+        return _pack, "assets_automix"
+
+    # 3) SAMSEL_WEB_ENGINE (;-separated), each root / SAMSEL_AutoMix_Jingle_3.mp3
+    eng_raw = os.environ.get("SAMSEL_WEB_ENGINE", "").strip()
+    if eng_raw:
+        for segment in re.split(r"[;|]", eng_raw):
+            seg = segment.strip()
+            if not seg:
+                continue
+            root = Path(seg).expanduser().resolve()
+            hit = (root / _JINGLE_NAME).resolve()
+            if hit.is_file():
+                return hit, "engine_env"
+
+    # 4) Common folder layouts (no env required)
+    for rel in (
+        _BASE.parent / "SAMSEL-WEB-ENGINE",
+        _BASE.parent / "SAMSEL_WEB" / "SAMSEL-WEB-ENGINE",
+        _BASE.parent.parent / "SAMSEL-WEB-ENGINE",
+        _BASE.parent.parent / "SAMSEL_WEB" / "SAMSEL-WEB-ENGINE",
+    ):
+        hit = (rel / _JINGLE_NAME).resolve()
+        if hit.is_file():
+            return hit, "engine_sibling"
+
+    # 4b) Walk up from samsel_web (e.g. …\Downloads\PACK\samsel_web → user home) for base\SAMSEL_WEB\SAMSEL-WEB-ENGINE\
+    try:
+        cursor = _BASE.resolve()
+        for _ in range(6):
+            hit = (cursor / "base" / "SAMSEL_WEB" / "SAMSEL-WEB-ENGINE" / _JINGLE_NAME).resolve()
+            if hit.is_file():
+                return hit, "engine_walk"
+            if cursor.parent == cursor:
+                break
+            cursor = cursor.parent
+    except (OSError, ValueError):
+        pass
+
+    # 5) Typical clone under %USERPROFILE%\base\SAMSEL_WEB\SAMSEL-WEB-ENGINE\
+    if sys.platform == "win32":
+        prof = (os.environ.get("USERPROFILE") or "").strip()
+        if prof:
+            hit = (Path(prof) / "base" / "SAMSEL_WEB" / "SAMSEL-WEB-ENGINE" / _JINGLE_NAME).resolve()
+            if hit.is_file():
+                return hit, "engine_userprofile"
+
+    # 6) Bundled placeholder
+    bundled = (_BASE / "assets" / "default-jingle.mp3").resolve()
+    if bundled.is_file():
+        return bundled, "bundled"
+
+    return None, "none"
+
+
+_JINGLE_PATH, _JINGLE_SOURCE = _resolve_jingle_path()
+if os.environ.get("SAMSEL_JINGLE_LOG", "").strip() == "1":
+    print(
+        f"samsel-web jingle: source={_JINGLE_SOURCE} path={_JINGLE_PATH!s}",
+        file=sys.stderr,
+    )
 
 # Bump with static HTML: <meta name="samsel-web-build"> and all asset ?v= query params.
-_WEB_BUILD = (os.environ.get("SAMSEL_WEB_BUILD") or "4").strip() or "4"
+_WEB_BUILD = (os.environ.get("SAMSEL_WEB_BUILD") or "5").strip() or "5"
 
 # So static UI on another host (e.g. Cloudflare Pages) can call health / jingle without SAMSEL_CORS_ORIGINS.
 _CORS_PUBLIC = {"Access-Control-Allow-Origin": "*"}
+# Stops Cloudflare / browsers caching API JSON as if it were static (fixes stale jingle on custom domain).
+_NO_STORE = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+}
+
+
+def _jingle_name_for_api() -> str | None:
+    if not _JINGLE_PATH or not _JINGLE_PATH.is_file():
+        return None
+    if _JINGLE_DISPLAY_NAME:
+        return _JINGLE_DISPLAY_NAME
+    return _JINGLE_PATH.name
+
 
 app = FastAPI(title="SAMSEL Web", version="1.0.0")
 
@@ -120,6 +222,7 @@ def health():
     port = _server_port()
     lan = _primary_lan_ipv4()
     phone_url = f"http://{lan}:{port}/" if lan else None
+    has_j = bool(_JINGLE_PATH and _JINGLE_PATH.is_file())
     return JSONResponse(
         content={
             "ok": True,
@@ -129,8 +232,10 @@ def health():
             "port": port,
             "lan_ip": lan,
             "phone_url": phone_url,
+            "jingle_source": _JINGLE_SOURCE if has_j else "none",
+            "default_jingle_name": _jingle_name_for_api() if has_j else None,
         },
-        headers=_CORS_PUBLIC,
+        headers={**_CORS_PUBLIC, **_NO_STORE},
     )
 
 
@@ -155,9 +260,10 @@ def jingle_config():
         content={
             "uploads_enabled": _JINGLE_UPLOADS_ENABLED,
             "has_default_jingle": has_default,
-            "default_jingle_name": _JINGLE_PATH.name if has_default else None,
+            "default_jingle_name": _jingle_name_for_api(),
+            "jingle_source": _JINGLE_SOURCE if has_default else "none",
         },
-        headers=_CORS_PUBLIC,
+        headers={**_CORS_PUBLIC, **_NO_STORE, "X-Samsel-Jingle-Source": _JINGLE_SOURCE if has_default else "none"},
     )
 
 
@@ -166,11 +272,15 @@ def jingle_default():
     """Stream the server-configured default jingle file."""
     if not _JINGLE_PATH or not _JINGLE_PATH.is_file():
         return Response(status_code=404)
+    _fname = _JINGLE_DISPLAY_NAME or _JINGLE_PATH.name
     return FileResponse(
         _JINGLE_PATH,
         media_type="audio/mpeg",
-        filename=_JINGLE_PATH.name,
-        headers={"Cache-Control": "public, max-age=86400", **_CORS_PUBLIC},
+        filename=_fname,
+        headers={
+            "Cache-Control": "private, no-cache, max-age=0, must-revalidate",
+            **_CORS_PUBLIC,
+        },
     )
 
 
