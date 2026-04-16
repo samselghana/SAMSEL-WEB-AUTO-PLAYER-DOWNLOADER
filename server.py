@@ -131,11 +131,46 @@ def _resolve_jingle_path() -> tuple[Path | None, str]:
 
 
 _JINGLE_PATH, _JINGLE_SOURCE = _resolve_jingle_path()
+_JINGLE_MTIME: float = 0.0
+if _JINGLE_PATH and _JINGLE_PATH.is_file():
+    try:
+        _JINGLE_MTIME = _JINGLE_PATH.stat().st_mtime
+    except OSError:
+        pass
 if os.environ.get("SAMSEL_JINGLE_LOG", "").strip() == "1":
     print(
         f"samsel-web jingle: source={_JINGLE_SOURCE} path={_JINGLE_PATH!s}",
         file=sys.stderr,
     )
+
+
+def _refresh_jingle() -> None:
+    """Re-resolve jingle path so file changes take effect without restart."""
+    global _JINGLE_PATH, _JINGLE_SOURCE, _JINGLE_MTIME
+    _JINGLE_PATH, _JINGLE_SOURCE = _resolve_jingle_path()
+    _JINGLE_MTIME = 0.0
+    if _JINGLE_PATH and _JINGLE_PATH.is_file():
+        try:
+            _JINGLE_MTIME = _JINGLE_PATH.stat().st_mtime
+        except OSError:
+            pass
+    if os.environ.get("SAMSEL_JINGLE_LOG", "").strip() == "1":
+        print(
+            f"samsel-web jingle (refreshed): source={_JINGLE_SOURCE} path={_JINGLE_PATH!s}",
+            file=sys.stderr,
+        )
+
+
+def _jingle_file_changed() -> bool:
+    """Check if the resolved jingle file has been modified since last resolve."""
+    if not _JINGLE_PATH:
+        return False
+    try:
+        if not _JINGLE_PATH.is_file():
+            return True
+        return _JINGLE_PATH.stat().st_mtime != _JINGLE_MTIME
+    except OSError:
+        return True
 
 # Bump with static HTML: <meta name="samsel-web-build"> and all asset ?v= query params.
 _WEB_BUILD = (os.environ.get("SAMSEL_WEB_BUILD") or "5").strip() or "5"
@@ -219,6 +254,8 @@ def _primary_lan_ipv4() -> str | None:
 
 @app.get("/api/health")
 def health():
+    if _jingle_file_changed():
+        _refresh_jingle()
     port = _server_port()
     lan = _primary_lan_ipv4()
     phone_url = f"http://{lan}:{port}/" if lan else None
@@ -255,32 +292,62 @@ def logo_png():
 @app.get("/api/jingle/config")
 def jingle_config():
     """Tell the frontend whether user uploads are allowed and if a default jingle exists."""
+    if _jingle_file_changed():
+        _refresh_jingle()
     has_default = bool(_JINGLE_PATH and _JINGLE_PATH.is_file())
+    src = _JINGLE_SOURCE if has_default else "none"
+    etag_val = f'"{src}-{_JINGLE_MTIME:.0f}-{int(has_default)}"'
     return JSONResponse(
         content={
             "uploads_enabled": _JINGLE_UPLOADS_ENABLED,
             "has_default_jingle": has_default,
             "default_jingle_name": _jingle_name_for_api(),
-            "jingle_source": _JINGLE_SOURCE if has_default else "none",
+            "jingle_source": src,
         },
-        headers={**_CORS_PUBLIC, **_NO_STORE, "X-Samsel-Jingle-Source": _JINGLE_SOURCE if has_default else "none"},
+        headers={
+            **_CORS_PUBLIC,
+            **_NO_STORE,
+            "X-Samsel-Jingle-Source": src,
+            "ETag": etag_val,
+        },
     )
 
 
 @app.get("/api/jingle/default")
 def jingle_default():
     """Stream the server-configured default jingle file."""
+    if _jingle_file_changed():
+        _refresh_jingle()
     if not _JINGLE_PATH or not _JINGLE_PATH.is_file():
         return Response(status_code=404)
     _fname = _JINGLE_DISPLAY_NAME or _JINGLE_PATH.name
+    etag_val = f'"{_JINGLE_SOURCE}-{_JINGLE_MTIME:.0f}"'
     return FileResponse(
         _JINGLE_PATH,
         media_type="audio/mpeg",
         filename=_fname,
         headers={
-            "Cache-Control": "private, no-cache, max-age=0, must-revalidate",
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "ETag": etag_val,
             **_CORS_PUBLIC,
         },
+    )
+
+
+@app.post("/api/jingle/reload")
+def jingle_reload():
+    """Force re-resolve the jingle file without restarting the server."""
+    _refresh_jingle()
+    has_default = bool(_JINGLE_PATH and _JINGLE_PATH.is_file())
+    return JSONResponse(
+        content={
+            "reloaded": True,
+            "has_default_jingle": has_default,
+            "default_jingle_name": _jingle_name_for_api(),
+            "jingle_source": _JINGLE_SOURCE if has_default else "none",
+        },
+        headers={**_CORS_PUBLIC, **_NO_STORE},
     )
 
 

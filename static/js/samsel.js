@@ -2814,7 +2814,10 @@
       if (gainMain) gainMain.gain.value = masterLinear;
     };
 
-    function applyJingleConfig(cfg) {
+    var _lastJingleEtag = "";
+
+    function applyJingleConfig(cfg, etag) {
+      if (etag) _lastJingleEtag = etag;
       if (!cfg.uploads_enabled) {
         jingleLocked = true;
         var fileBtn = $("jg-file");
@@ -2853,6 +2856,8 @@
       }
     }
 
+    var _jingleConfigSuccessUrl = "";
+
     function fetchJingleConfigAttempt(urls, index) {
       if (index >= urls.length) {
         console.warn("SAMSEL: jingle /api/jingle/config failed for all URLs (check tunnel + data-samsel-api-base).", urls);
@@ -2862,10 +2867,12 @@
       fetch(jingleConfigUrlWithBuster(url), { credentials: "omit", cache: "no-store" })
         .then(function (r) {
           if (!r.ok) return Promise.reject(new Error("jingle config " + r.status));
-          return r.json();
+          var etag = r.headers.get("ETag") || "";
+          return r.json().then(function (cfg) { return { cfg: cfg, etag: etag }; });
         })
-        .then(function (cfg) {
-          applyJingleConfig(cfg);
+        .then(function (result) {
+          _jingleConfigSuccessUrl = url;
+          applyJingleConfig(result.cfg, result.etag);
         })
         .catch(function (err) {
           console.warn("SAMSEL: jingle config try failed:", url, err);
@@ -2876,6 +2883,19 @@
     (function fetchJingleConfig() {
       fetchJingleConfigAttempt(jingleConfigUrlsToTry(), 0);
     })();
+
+    setInterval(function () {
+      var url = _jingleConfigSuccessUrl;
+      if (!url) return;
+      fetch(jingleConfigUrlWithBuster(url), { credentials: "omit", cache: "no-store" })
+        .then(function (r) {
+          if (!r.ok) return;
+          var etag = r.headers.get("ETag") || "";
+          if (etag && etag === _lastJingleEtag) return;
+          return r.json().then(function (cfg) { applyJingleConfig(cfg, etag); });
+        })
+        .catch(function () {});
+    }, 60000);
 
     document.querySelectorAll(".tab").forEach(function (tab) {
       tab.onclick = function () {

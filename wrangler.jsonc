@@ -1,14 +1,18 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "samsel-music-player-pro",
+  "main": "src/worker.js",
   "compatibility_date": "2026-04-13",
   "observability": {
     "enabled": true
   },
   "assets": {
-    "directory": "static"
+    "directory": "static",
+    "binding": "ASSETS"
   },
   "compatibility_flags": [
     "nodejs_compat"
   ]
+  // Set RAILWAY_BACKEND_URL as a secret via:  wrangler secret put RAILWAY_BACKEND_URL
+  // Value: your Railway deploy URL, e.g. https://your-app.up.railway.app
 }

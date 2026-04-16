@@ -122,7 +122,9 @@ Verify after run_web.bat + tunnel:
   Expect: "has_default_jingle": true, "default_jingle_name": "SAMSEL_AutoMix_Jingle_3.mp3",
   and "jingle_source" NOT "bundled" (bundled means only assets/default-jingle.mp3 was found).
   If you still see bundled: copy SAMSEL_AutoMix_Jingle_3.mp3 next to server.py, or fix paths in
-  run_web.bat (SAMSEL_JINGLE_PATH uses semicolon-separated candidates). Restart uvicorn after edits.
+  run_web.bat (SAMSEL_JINGLE_PATH uses semicolon-separated candidates).
+  The server now auto-detects file changes without restart. You can also force a re-resolve:
+    curl -X POST https://samsel-automix.com/api/jingle/reload
   Optional: SAMSEL_JINGLE_LOG=1 logs the resolved path to stderr at startup.
 
 --------------------------------------------------------------------------------

@@ -49,4 +49,19 @@ server.py and server:app — Procfile and python -m / __main__ match that.
    under the container (see automix_routes). For persistent downloads on the
    server, attach a Railway volume and point output_dir in the UI/config.
 
+8. Cloudflare Pages + Railway backend (API proxy):
+   wrangler.jsonc now includes a Worker script (src/worker.js) that proxies
+   /api/* and /health to your Railway backend. Set the secret:
+     wrangler secret put RAILWAY_BACKEND_URL
+   Value: your Railway deploy URL, e.g. https://your-app.up.railway.app
+   Deploy:  npx wrangler deploy
+   This means samsel-automix.com serves static HTML from Cloudflare edge and
+   proxies all API calls (jingle, health, automix) to Railway — no tunnel needed.
+
+9. Jingle updates: the server now auto-detects jingle file changes on each API
+   request (no restart required). You can also force re-resolve:
+     POST /api/jingle/reload
+   The /api/jingle/config response includes an ETag header so CDNs and browsers
+   can detect when the jingle actually changed.
+
 ================================================================================
