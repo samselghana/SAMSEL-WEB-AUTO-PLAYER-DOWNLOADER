@@ -2864,7 +2864,7 @@
         return;
       }
       var url = urls[index];
-      fetch(jingleConfigUrlWithBuster(url), { credentials: "omit", cache: "no-store" })
+      fetch(jingleConfigUrlWithBuster(url), { cache: "no-store" })
         .then(function (r) {
           if (!r.ok) return Promise.reject(new Error("jingle config " + r.status));
           var etag = r.headers.get("ETag") || "";
@@ -2887,7 +2887,7 @@
     setInterval(function () {
       var url = _jingleConfigSuccessUrl;
       if (!url) return;
-      fetch(jingleConfigUrlWithBuster(url), { credentials: "omit", cache: "no-store" })
+      fetch(jingleConfigUrlWithBuster(url), { cache: "no-store" })
         .then(function (r) {
           if (!r.ok) return;
           var etag = r.headers.get("ETag") || "";
