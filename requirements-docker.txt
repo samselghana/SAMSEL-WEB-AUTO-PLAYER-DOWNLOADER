@@ -1,8 +1,0 @@
-# Slim image for Railway / Docker: faster boot, lower RAM (no librosa/scipy stack).
-# BPM/genre analysis is skipped until you switch the Dockerfile to requirements.txt.
-fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
-python-multipart>=0.0.6
-mutagen>=1.47.0
-yt-dlp>=2024.8.0
-syncedlyrics>=1.0.0
