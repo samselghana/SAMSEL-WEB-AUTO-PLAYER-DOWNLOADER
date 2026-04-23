@@ -38,7 +38,7 @@ LOGO_PNG = _BASE / "logo.png"
 # SAMSEL_JINGLE_UPLOADS=1  → allow user jingle uploads  (default)
 # SAMSEL_JINGLE_PATH       → one or more paths separated by ;  (first existing file wins)
 # SAMSEL_WEB_ENGINE        → one or more folders; each checked for SAMSEL_AutoMix_Jingle_3.mp3
-# Auto-probes: samsel_web sibling folders, then %USERPROFILE%\base\SAMSEL_WEB\SAMSEL-WEB-ENGINE\...
+# Auto-probes: samsel_web sibling folders, then SAMSEL_BASE (default %USERPROFILE%\base) / SAMSEL_WEB / SAMSEL-WEB-ENGINE\...
 # Last resort: assets/SAMSEL_AutoMix_Jingle_3.mp3, then assets/default-jingle.mp3
 _JINGLE_UPLOADS_ENABLED = os.environ.get("SAMSEL_JINGLE_UPLOADS", "1").strip() != "0"
 _JINGLE_NAME = "SAMSEL_AutoMix_Jingle_3.mp3"
@@ -114,6 +114,22 @@ def _resolve_jingle_path() -> tuple[Path | None, str]:
     except (OSError, ValueError):
         pass
 
+    # 4c) SAMSEL_BASE — workspace root (e.g. C:\Users\pc\base). Same layout as %USERPROFILE%\base\...
+    _sb = (os.environ.get("SAMSEL_BASE") or "").strip()
+    if _sb:
+        try:
+            _rootb = Path(_sb).expanduser().resolve()
+            for _rel in (
+                _rootb / "SAMSEL_WEB" / "SAMSEL-WEB-ENGINE",
+                _rootb / "SAMSEL-WEB-ENGINE",
+                _rootb,
+            ):
+                _hitb = (_rel / _JINGLE_NAME).resolve()
+                if _hitb.is_file():
+                    return _hitb, "engine_samsel_base"
+        except (OSError, ValueError):
+            pass
+
     # 5) Typical clone under %USERPROFILE%\base\SAMSEL_WEB\SAMSEL-WEB-ENGINE\
     if sys.platform == "win32":
         prof = (os.environ.get("USERPROFILE") or "").strip()
@@ -131,46 +147,11 @@ def _resolve_jingle_path() -> tuple[Path | None, str]:
 
 
 _JINGLE_PATH, _JINGLE_SOURCE = _resolve_jingle_path()
-_JINGLE_MTIME: float = 0.0
-if _JINGLE_PATH and _JINGLE_PATH.is_file():
-    try:
-        _JINGLE_MTIME = _JINGLE_PATH.stat().st_mtime
-    except OSError:
-        pass
 if os.environ.get("SAMSEL_JINGLE_LOG", "").strip() == "1":
     print(
         f"samsel-web jingle: source={_JINGLE_SOURCE} path={_JINGLE_PATH!s}",
         file=sys.stderr,
     )
-
-
-def _refresh_jingle() -> None:
-    """Re-resolve jingle path so file changes take effect without restart."""
-    global _JINGLE_PATH, _JINGLE_SOURCE, _JINGLE_MTIME
-    _JINGLE_PATH, _JINGLE_SOURCE = _resolve_jingle_path()
-    _JINGLE_MTIME = 0.0
-    if _JINGLE_PATH and _JINGLE_PATH.is_file():
-        try:
-            _JINGLE_MTIME = _JINGLE_PATH.stat().st_mtime
-        except OSError:
-            pass
-    if os.environ.get("SAMSEL_JINGLE_LOG", "").strip() == "1":
-        print(
-            f"samsel-web jingle (refreshed): source={_JINGLE_SOURCE} path={_JINGLE_PATH!s}",
-            file=sys.stderr,
-        )
-
-
-def _jingle_file_changed() -> bool:
-    """Check if the resolved jingle file has been modified since last resolve."""
-    if not _JINGLE_PATH:
-        return False
-    try:
-        if not _JINGLE_PATH.is_file():
-            return True
-        return _JINGLE_PATH.stat().st_mtime != _JINGLE_MTIME
-    except OSError:
-        return True
 
 # Bump with static HTML: <meta name="samsel-web-build"> and all asset ?v= query params.
 _WEB_BUILD = (os.environ.get("SAMSEL_WEB_BUILD") or "5").strip() or "5"
@@ -254,8 +235,6 @@ def _primary_lan_ipv4() -> str | None:
 
 @app.get("/api/health")
 def health():
-    if _jingle_file_changed():
-        _refresh_jingle()
     port = _server_port()
     lan = _primary_lan_ipv4()
     phone_url = f"http://{lan}:{port}/" if lan else None
@@ -292,68 +271,39 @@ def logo_png():
 @app.get("/api/jingle/config")
 def jingle_config():
     """Tell the frontend whether user uploads are allowed and if a default jingle exists."""
-    if _jingle_file_changed():
-        _refresh_jingle()
     has_default = bool(_JINGLE_PATH and _JINGLE_PATH.is_file())
-    src = _JINGLE_SOURCE if has_default else "none"
-    etag_val = f'"{src}-{_JINGLE_MTIME:.0f}-{int(has_default)}"'
     return JSONResponse(
         content={
             "uploads_enabled": _JINGLE_UPLOADS_ENABLED,
             "has_default_jingle": has_default,
             "default_jingle_name": _jingle_name_for_api(),
-            "jingle_source": src,
+            "jingle_source": _JINGLE_SOURCE if has_default else "none",
         },
-        headers={
-            **_CORS_PUBLIC,
-            **_NO_STORE,
-            "X-Samsel-Jingle-Source": src,
-            "ETag": etag_val,
-        },
+        headers={**_CORS_PUBLIC, **_NO_STORE, "X-Samsel-Jingle-Source": _JINGLE_SOURCE if has_default else "none"},
     )
 
 
 @app.get("/api/jingle/default")
 def jingle_default():
     """Stream the server-configured default jingle file."""
-    if _jingle_file_changed():
-        _refresh_jingle()
     if not _JINGLE_PATH or not _JINGLE_PATH.is_file():
         return Response(status_code=404)
     _fname = _JINGLE_DISPLAY_NAME or _JINGLE_PATH.name
-    etag_val = f'"{_JINGLE_SOURCE}-{_JINGLE_MTIME:.0f}"'
     return FileResponse(
         _JINGLE_PATH,
         media_type="audio/mpeg",
         filename=_fname,
         headers={
-            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-            "Pragma": "no-cache",
-            "ETag": etag_val,
+            "Cache-Control": "private, no-cache, max-age=0, must-revalidate",
             **_CORS_PUBLIC,
         },
     )
 
 
-@app.post("/api/jingle/reload")
-def jingle_reload():
-    """Force re-resolve the jingle file without restarting the server."""
-    _refresh_jingle()
-    has_default = bool(_JINGLE_PATH and _JINGLE_PATH.is_file())
-    return JSONResponse(
-        content={
-            "reloaded": True,
-            "has_default_jingle": has_default,
-            "default_jingle_name": _jingle_name_for_api(),
-            "jingle_source": _JINGLE_SOURCE if has_default else "none",
-        },
-        headers={**_CORS_PUBLIC, **_NO_STORE},
-    )
-
-
 _MANIFEST = STATIC / "manifest.webmanifest"
+_INDEX_HTML = STATIC / "index.html"
 # Optional assets for camo-themed UI; also mirrored at static/img/camo-tile.svg for CSS.
-_CAMO = _BASE / "Camouflage_png"
+_CAMO = _BASE / "Camouflages_png"
 
 
 @app.get("/manifest.webmanifest")
@@ -361,6 +311,21 @@ def web_manifest():
     """PWA manifest with correct MIME (iOS/Android Add to Home Screen)."""
     if _MANIFEST.is_file():
         return FileResponse(_MANIFEST, media_type="application/manifest+json")
+    return Response(status_code=404)
+
+
+@app.get("/")
+def root_index_no_cache():
+    """Serve shell HTML with no-store so Cloudflare/browsers do not keep a stale tunnel build."""
+    if _INDEX_HTML.is_file():
+        return FileResponse(_INDEX_HTML, media_type="text/html", headers=_NO_STORE)
+    return Response(status_code=404)
+
+
+@app.get("/index.html")
+def root_index_explicit_no_cache():
+    if _INDEX_HTML.is_file():
+        return FileResponse(_INDEX_HTML, media_type="text/html", headers=_NO_STORE)
     return Response(status_code=404)
 
 
@@ -378,3 +343,4 @@ if __name__ == "__main__":
         (os.environ.get("PORT") or os.environ.get("SAMSEL_PORT") or "8765").strip() or "8765"
     )
     uvicorn.run("server:app", host="0.0.0.0", port=_port)
+
