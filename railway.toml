@@ -1,11 +1,1 @@
-# https://docs.railway.com/reference/config-as-code
-[build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
 
-[deploy]
-# Plain GET /health (see server.py). Clear any custom Start Command in Railway UI so Dockerfile ENTRYPOINT runs.
-healthcheckPath = "/health"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
