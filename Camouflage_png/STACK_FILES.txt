@@ -9,6 +9,21 @@ Place exactly these filenames in this folder (same directory as camo-tile.svg):
   stack_5.png
   stack_6.png
   stack_7.png
+  stack_8.png
+  stack_9.png
+  stack_10.png
+  stack_11.png
+  stack_12.png
+  stack_13.png
+  stack_14.png
+  stack_15.png
+  stack_16.png
+  stack_17.png
+  stack_18.png
+  stack_19.png
+  stack_20.png
+  stack_21.png
+  stack_22.png
 
 They are served at /camo/stack_N.png when uvicorn runs (server.py or automix_standalone_app.py).
 
