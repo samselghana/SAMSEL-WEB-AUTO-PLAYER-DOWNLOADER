@@ -1,12 +1,12 @@
 /**
- * Assign each .btn / .tab / label.btn-file a random camo stack (1–7).
+ * Assign each .btn / .tab / label.btn-file a random camo stack (1–22).
  * If Camouflage_png/stack_N.png exists (served as /camo/stack_N.png on the API host),
  * that texture is used; otherwise seven different filters/offsets apply to the shared SVG tile.
  */
 (function () {
   "use strict";
 
-  var STACKS = 7;
+  var STACKS = 22;
 
   function getApiBase() {
     try {
